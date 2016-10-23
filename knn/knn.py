@@ -55,9 +55,9 @@ def score(prediction, testSet):
     return float(equalValues)/float(len(testSet))
 
 trainingSet, testSet = prepareData()
-predictions = fit(trainingSet,testSet,3)
+predictions = fit(trainingSet,testSet,4)
 print score(predictions, testSet[:,-1])
 
-wknn3 = KNeighborsClassifier(n_neighbors=3,weights='uniform')
+wknn3 = KNeighborsClassifier(n_neighbors=4,weights='uniform')
 wknn3.fit(trainingSet[:,0:3], trainingSet[:,-1])
 print wknn3.score(testSet[:,0:3],testSet[:,-1])
