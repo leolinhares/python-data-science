@@ -3,7 +3,7 @@ import math
 import scipy.stats as ss
 from bokeh.plotting import figure, output_file, show
 from sklearn import linear_model
-
+from numpy.linalg import inv
 
 # load data
 data = np.loadtxt("bike_sharing.csv", delimiter=",", skiprows=1)
@@ -66,13 +66,20 @@ print theta
 # b = testLabels
 # print zip(a,b)
 
+# forma normal
+p = inv(trainingFeatures.T.dot(trainingFeatures)).dot(trainingFeatures.T.dot(trainingLabels))
+
 regr = linear_model.LinearRegression()
 regr.fit(trainingFeatures, trainingLabels)
-print("Mean squared error: %f"
+print("Mean squared error original: %f"
       % np.mean((regr.predict(testFeatures) - testLabels) ** 2))
 
-print("Mean squared error 2: %f"
+print("Mean squared error minha solucao: %f"
       % np.mean((predict(testFeatures, theta) - testLabels) ** 2))
+
+print("Mean squared error forma normal: %f"
+      % np.mean((predict(testFeatures, p) - testLabels) ** 2))
+
 
 it = np.arange(1000)
 p = figure(x_axis_label='Iterations', y_axis_label='Cost')
