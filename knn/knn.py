@@ -20,6 +20,7 @@ class KNeighbors():
         return distance
 
     def predict(self, test_features):
+        self.predictions = []
         for i, instance in enumerate(test_features):
             neighbours = self.getNeighbours(instance, self.X, self.y, self.k)
             prediction = self.vote(neighbours)
@@ -49,7 +50,7 @@ class KNeighbors():
         return max(set(votes), key=votes.count)
 
     def score(self, test_features, test_labels):
-        p = self.predictions
+        p = self.predict(test_features)
         equalValues = np.sum(p == test_labels)
         return float(equalValues) / float(len(test_labels))
 
