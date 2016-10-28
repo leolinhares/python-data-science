@@ -49,8 +49,8 @@ def gradient_descent(X, y, alpha, iterations):
 
     for i in range(iterations):
         error = y - X.dot(theta)
-        for j in range(features):
-            temp[j] = theta[j] + (alpha / size) * error.dot(X[:, j])
+        # for j in range(features):
+        temp = theta + (alpha / size) * error.dot(X)
         theta = temp
         cost[i] = cost_function(trainingFeatures, trainingLabels, theta)
     return theta, cost
