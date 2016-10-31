@@ -44,14 +44,12 @@ def cost_function(training_features, training_labels, theta):
 def gradient_descent(X, y, alpha, iterations):
     size, features = X.shape
     theta = np.zeros(features)
-    temp = theta[:]
     cost = np.zeros(iterations)
 
     for i in range(iterations):
-        error = y - X.dot(theta)
-        # for j in range(features):
-        temp = theta + (alpha / size) * error.dot(X)
-        theta = temp
+        for index, row in enumerate(X):
+            error = y[index] - row.dot(theta)
+            theta = theta + (alpha / size) * error * row
         cost[i] = cost_function(trainingFeatures, trainingLabels, theta)
     return theta, cost
 
