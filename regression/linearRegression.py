@@ -3,6 +3,7 @@ import math
 import scipy.stats as ss
 from bokeh.plotting import figure, output_file, show
 from sklearn import linear_model
+import sklearn
 
 # load data
 data = np.loadtxt("bike_sharing.csv", delimiter=",", skiprows=1)
@@ -17,10 +18,10 @@ testFeatures = ndata[nt:, 0:columns - 1]
 testLabels = ndata[nt:, -1]
 
 # non normalized data
-trFeatures = trainingFeatures
-trLabels = trainingLabels
-ttFeatures = testFeatures
-ttLabels = testLabels
+trFeatures = trainingFeatures[:]
+trLabels = trainingLabels[:]
+ttFeatures = testFeatures[:]
+ttLabels = testLabels[:]
 
 # normalize the data
 trainingFeatures = ss.zscore(trainingFeatures)
@@ -36,7 +37,6 @@ rows = len(testFeatures)
 arrayOfOnes = np.ones(rows)
 testFeatures = np.c_[arrayOfOnes, testFeatures]
 
-
 def cost_function(training_features, training_labels, theta):
     return np.sum(np.power((training_features.dot(theta) - training_labels), 2)) / (2 * len(training_features))
 
@@ -44,13 +44,15 @@ def cost_function(training_features, training_labels, theta):
 def gradient_descent(X, y, alpha, iterations):
     size, features = X.shape
     theta = np.zeros(features)
+
     cost = np.zeros(iterations)
 
     for i in range(iterations):
         for index, row in enumerate(X):
-            error = y[index] - row.dot(theta)
-            theta = theta + (alpha / size) * error * row
-        cost[i] = cost_function(trainingFeatures, trainingLabels, theta)
+            error = predict(row, theta) - y[index]
+            theta = theta - alpha * error * row
+        cost[i] = cost_function(X, y, theta)
+
     return theta, cost
 
 
@@ -59,13 +61,13 @@ def predict(X, w):
 
 
 # Minha solucao
-weights, cost = gradient_descent(trainingFeatures, trainingLabels, 0.01, 1000)
+weights, cost = gradient_descent(trainingFeatures, trainingLabels, 0.00001, 100)
 print weights
 print("Mean squared error minha solucao: %f"
       % np.mean((predict(testFeatures, weights) - testLabels) ** 2))
 
 # SKlearn
-regr = linear_model.LinearRegression(normalize=True, )
+regr = linear_model.LinearRegression(normalize=True)
 regr.fit(trFeatures, trLabels)
 print regr.coef_
 print("Mean squared error original: %f"
@@ -76,7 +78,7 @@ print("Mean squared error original: %f"
 # print("Mean squared error forma normal: %f"
 #       % np.mean((predict(testFeatures, p) - testLabels) ** 2))
 
-it = np.arange(1000)
+it = np.arange(100)
 p = figure(x_axis_label='Iterations', y_axis_label='Cost')
 p.line(it, cost, line_width=2)
 show(p)
