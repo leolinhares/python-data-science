@@ -3,82 +3,119 @@ import math
 import scipy.stats as ss
 from bokeh.plotting import figure, output_file, show
 from sklearn import linear_model
-import sklearn
+import warnings
+warnings.filterwarnings(action="ignore", module="scipy", message="^internal gelsd")
 
-# load data
-data = np.loadtxt("bike_sharing.csv", delimiter=",", skiprows=1)
+class LR:
 
-# randomize rows and split features from labels
-ndata = np.random.permutation(data)
-columns = ndata.shape[1]
-nt = int(math.floor(len(ndata) * 0.7))
-trainingFeatures = ndata[0:nt, 0:columns - 1]
-trainingLabels = ndata[0:nt, -1]
-testFeatures = ndata[nt:, 0:columns - 1]
-testLabels = ndata[nt:, -1]
+    predictions = []
+    weights = []
+    cost = []
 
-# non normalized data
-trFeatures = trainingFeatures[:]
-trLabels = trainingLabels[:]
-ttFeatures = testFeatures[:]
-ttLabels = testLabels[:]
+    def __init__(self, alpha, epochs, algorithm='stochastic', normalize=True):
+        self.alpha = alpha
+        self.epochs = epochs
+        self.algorithm = algorithm
+        self.normalize = normalize
 
-# normalize the data
-trainingFeatures = ss.zscore(trainingFeatures)
-testFeatures = ss.zscore(testFeatures)
+    def normalization(self, X):
+        X = ss.zscore(X)
+        rows = len(X)
+        arrayOfOnes = np.ones(rows)
+        X = np.c_[arrayOfOnes, X] # add column of ones
+        return X
 
-# add array of ones to the matrix of training features
-rows = len(trainingFeatures)
-arrayOfOnes = np.ones(rows)
-trainingFeatures = np.c_[arrayOfOnes, trainingFeatures]
+    def predict(self, X):
+        X = self.normalization(X)
+        self.predictions = X.dot(self.weights)
+        return self.predictions
 
-# add array of ones to the matrix of test features
-rows = len(testFeatures)
-arrayOfOnes = np.ones(rows)
-testFeatures = np.c_[arrayOfOnes, testFeatures]
+    def r_squared(self, X, y, weights):
+        return np.sum(np.power((X.dot(weights) - y), 2)) / (2 * len(X))
 
-def cost_function(training_features, training_labels, theta):
-    return np.sum(np.power((training_features.dot(theta) - training_labels), 2)) / (2 * len(training_features))
+    def stochastic(self, X, y):
+        X = self.normalization(X)
+        size, features = X.shape
+        weights = np.zeros(features)
+        cost = np.zeros(self.epochs)
+
+        for i in range(self.epochs):
+            for index, row in enumerate(X):
+                error = row.dot(weights) - y[index]
+                weights = weights - self.alpha * error * row
+            cost[i] = self.r_squared(X, y, weights)
+
+        self.weights = weights[:]
+        self.cost = cost[:]
+
+    def batch(self, X, y):
+        X = self.normalization(X)
+        size, features = X.shape
+        weights = np.zeros(features)
+        cost = np.zeros(self.epochs)
+
+        for i in range(self.epochs):
+            error = X.dot(weights) - y
+            weights = weights - (self.alpha/size)*error.dot(X)
+            cost[i] = self.r_squared(X, y, weights)
+
+        self.weights = weights[:]
+        self.cost = cost[:]
 
 
-def gradient_descent(X, y, alpha, iterations):
-    size, features = X.shape
-    theta = np.zeros(features)
+def get_data():
 
-    cost = np.zeros(iterations)
+    # load data
+    data = np.loadtxt("bike_sharing.csv", delimiter=",", skiprows=1)
 
-    for i in range(iterations):
-        for index, row in enumerate(X):
-            error = predict(row, theta) - y[index]
-            theta = theta - alpha * error * row
-        cost[i] = cost_function(X, y, theta)
+    # randomize rows and split features from labels
+    ndata = np.random.permutation(data)
+    columns = ndata.shape[1]
+    nt = int(math.floor(len(ndata) * 0.7))
+    trainingFeatures = ndata[0:nt, 0:columns - 1]
+    trainingLabels = ndata[0:nt, -1]
+    testFeatures = ndata[nt:, 0:columns - 1]
+    testLabels = ndata[nt:, -1]
 
-    return theta, cost
-
-
-def predict(X, w):
-    return X.dot(w)
+    return trainingFeatures, trainingLabels, testFeatures, testLabels
 
 
-# Minha solucao
-weights, cost = gradient_descent(trainingFeatures, trainingLabels, 0.00001, 100)
-print weights
-print("Mean squared error minha solucao: %f"
-      % np.mean((predict(testFeatures, weights) - testLabels) ** 2))
+def main():
+    trainingFeatures, trainingLabels, testFeatures, testLabels = get_data()
 
-# SKlearn
-regr = linear_model.LinearRegression(normalize=True)
-regr.fit(trFeatures, trLabels)
-print regr.coef_
-print("Mean squared error original: %f"
-      % np.mean((regr.predict(ttFeatures) - ttLabels) ** 2))
+    # SKlearn
+    regr = linear_model.LinearRegression(normalize=True)
+    regr.fit(trainingFeatures, trainingLabels)
+    print regr.coef_
+    print("Mean squared error SKLEARN: %f"
+          % np.mean((regr.predict(testFeatures) - testLabels) ** 2))
 
-# forma normal
-# p = inv(trainingFeatures.T.dot(trainingFeatures)).dot(trainingFeatures.T.dot(trainingLabels))
-# print("Mean squared error forma normal: %f"
-#       % np.mean((predict(testFeatures, p) - testLabels) ** 2))
+    s_alpha = 0.00001
+    s_epochs = 100
+    stochastic_regression = LR(s_alpha, s_epochs)
+    stochastic_regression.stochastic(trainingFeatures, trainingLabels)
+    print stochastic_regression.weights
+    print("Mean squared error stochastic regression (alpha=%f, epochs=%d): %f"
+          % (s_alpha,  s_epochs, np.mean((stochastic_regression.predict(testFeatures) - testLabels) ** 2)))
 
-it = np.arange(100)
-p = figure(x_axis_label='Iterations', y_axis_label='Cost')
-p.line(it, cost, line_width=2)
-show(p)
+    it = np.arange(s_epochs)
+    p = figure(x_axis_label='Iterations', y_axis_label='Cost')
+    p.line(it, stochastic_regression.cost, line_width=2)
+    show(p)
+
+    b_alpha = 0.01
+    b_epochs = 500
+    batch_regression = LR(b_alpha, b_epochs)
+    batch_regression.batch(trainingFeatures, trainingLabels)
+    print batch_regression.weights
+    print("Mean squared error batch regression (alpha=%f, epochs=%d): %f"
+          % (b_alpha, b_epochs, np.mean((batch_regression.predict(testFeatures) - testLabels) ** 2)))
+
+    it = np.arange(b_epochs)
+    a = figure(x_axis_label='Iterations', y_axis_label='Cost')
+    a.line(it, batch_regression.cost, line_width=2)
+    show(a)
+
+
+if __name__ == "__main__":
+    main()
