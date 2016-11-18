@@ -1,5 +1,4 @@
 import xml.etree.ElementTree as etree
-# from lxml import etree
 from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem import RSLPStemmer
@@ -14,6 +13,7 @@ from sklearn.naive_bayes import MultinomialNB,BernoulliNB
 from sklearn.linear_model import LogisticRegression,SGDClassifier
 from sklearn.svm import SVC, LinearSVC
 
+# create the xml tree to be read
 tree = etree.parse('news_data.xml')
 root = tree.getroot()
 
@@ -23,12 +23,16 @@ tokenizer = RegexpTokenizer(r'\w+')
 # portuguese stemmer
 stemmer = RSLPStemmer()
 
-all = []
+# portuguese stopwords
+stops = set(stopwords.words('portuguese'))
+
+# auxiliary data structures
+all_words = []
 features = []
 labels = []
 
+# it is used an item iterator to go through the xml tree
 it = tree.iter(tag='item')
-stops = set(stopwords.words('portuguese'))
 for elem in it:
     all_text = ""
 
@@ -42,26 +46,31 @@ for elem in it:
     description = elem.find("description").text
     text = elem.find("text").text
 
+    # removal of empty strings on the text
     all_text = ' '.join(filter(None, (channel, title, description, text)))
 
+    # regex tokenizer
     all_text = tokenizer.tokenize(all_text)
 
+    # stopwords removal
     filtered_words = [word for word in all_text if word.lower() not in stops and len(word.lower()) > 1]
 
+    # stemming
     stemmed_words = [stemmer.stem(word) for word in filtered_words]
 
     features.append(stemmed_words)
 
-    all += stemmed_words
+    all_words += stemmed_words
 
-fd = FreqDist(all)
-most_common_words = [word_tuple[0] for word_tuple in fd.most_common(200)]
+# feature extraction
 featuresets = []
+fd = FreqDist(all_words)
+most_common_words = [word_tuple[0] for word_tuple in fd.most_common(200)]
 print(most_common_words)
 for item, label in zip(features, labels):
     selected_features = {}
     for word in most_common_words:
-        selected_features[word] = word in item
+        selected_features['contains(%s)' % word] = word in item
     featuresets.append((selected_features, label))
 
 
@@ -69,6 +78,8 @@ size = len(features)
 nt = int(math.floor(size * 0.7))
 random.shuffle(featuresets)
 train_set, test_set = featuresets[:nt], featuresets[nt:]
+
+# CLASSIFIERS
 
 NB_classifier = NaiveBayesClassifier.train(train_set)
 print("NB_classifier accuracy percent:", (nltk.classify.accuracy(NB_classifier, test_set))*100)
@@ -100,8 +111,3 @@ print("SVC_classifier accuracy percent:", (nltk.classify.accuracy(SVC_classifier
 LinearSVC_classifier = SklearnClassifier(LinearSVC())
 LinearSVC_classifier.train(train_set)
 print("LinearSVC_classifier accuracy percent:", (nltk.classify.accuracy(LinearSVC_classifier, test_set))*100)
-
-# def main():
-#     pass
-# if __name__ == "__main__":
-#     main()
